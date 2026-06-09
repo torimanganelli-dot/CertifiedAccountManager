@@ -1,13 +1,12 @@
 import React, { useState } from "react";
 import { useOutletContext } from "react-router-dom";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, DollarSign, Target, BarChart3, MessageSquare, ChevronDown } from "lucide-react";
+import { Users, DollarSign, Target, BarChart3, ChevronDown } from "lucide-react";
 import { SPRINTS, SPRINT_LABELS } from "@/lib/sprintData";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import CoachingRecommendations from "@/components/leader/CoachingRecommendations";
 
@@ -17,35 +16,52 @@ export default function LeaderDashboard() {
 
   const { data: allReflections = [] } = useQuery({
     queryKey: ["leader-reflections"],
-    queryFn: () => base44.entities.SprintReflection.list("-created_date", 1000),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sprint_reflections")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["all-users"],
-    queryFn: () => base44.entities.User.list(),
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["all-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*");
+      if (error) throw error;
+      return data;
+    },
   });
 
-  const participants = users.filter((u) => u.role === "participant");
+  const participants = profiles.filter((p) => p.role === "participant" || !p.role);
 
   const filteredReflections = selectedParticipant === "all"
     ? allReflections
-    : allReflections.filter((r) => r.created_by === selectedParticipant);
+    : allReflections.filter((r) => r.user_id === selectedParticipant);
 
-  // Aggregate stats
   const totalRevenue = filteredReflections.reduce((s, r) => s + (r.revenue_influenced || 0), 0);
   const totalOpportunities = filteredReflections.reduce((s, r) => s + (r.opportunities_uncovered || 0), 0);
-  const completedCount = filteredReflections.filter((r) => r.status === "completed").length;
   const avgProgress = participants.length > 0
     ? Math.round((allReflections.filter((r) => r.status === "completed").length / (participants.length * 9)) * 100)
     : 0;
 
-  // Per-participant view
+  // Per-participant rollup keyed by user_id
   const participantMap = {};
   allReflections.forEach((r) => {
-    if (!participantMap[r.created_by]) {
-      participantMap[r.created_by] = { email: r.created_by, name: r.participant_name || r.created_by, reflections: [], cohort: r.cohort };
+    if (!participantMap[r.user_id]) {
+      const profile = profiles.find((p) => p.id === r.user_id);
+      participantMap[r.user_id] = {
+        user_id: r.user_id,
+        name: profile?.display_name || r.participant_name || "Participant",
+        reflections: [],
+        cohort: r.cohort,
+      };
     }
-    participantMap[r.created_by].reflections.push(r);
+    participantMap[r.user_id].reflections.push(r);
   });
 
   const participantList = Object.values(participantMap);
@@ -64,7 +80,7 @@ export default function LeaderDashboard() {
           <SelectContent>
             <SelectItem value="all">All Participants</SelectItem>
             {participants.map((p) => (
-              <SelectItem key={p.email} value={p.email}>{p.full_name}</SelectItem>
+              <SelectItem key={p.id} value={p.id}>{p.display_name || p.email}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -111,7 +127,7 @@ export default function LeaderDashboard() {
           const pOpps = p.reflections.reduce((s, r) => s + (r.opportunities_uncovered || 0), 0);
 
           return (
-            <Collapsible key={p.email}>
+            <Collapsible key={p.user_id}>
               <Card className="border-0 shadow-sm">
                 <CollapsibleTrigger className="w-full">
                   <div className="flex items-center gap-4 p-5 cursor-pointer hover:bg-muted/30 rounded-xl">
@@ -147,7 +163,6 @@ export default function LeaderDashboard() {
                       </div>
                     </div>
 
-                    {/* Sprint status grid */}
                     <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                       {SPRINTS.map((sprint) => {
                         const ref = p.reflections.find((r) => r.sprint_number === sprint.number);
@@ -164,8 +179,13 @@ export default function LeaderDashboard() {
                       })}
                     </div>
 
-                    {/* Coaching Recommendations */}
-                    <CoachingRecommendations reflections={p.reflections} participantName={p.name} revenue={pRevenue} opportunities={pOpps} completedCount={pCompleted} />
+                    <CoachingRecommendations
+                      reflections={p.reflections}
+                      participantName={p.name}
+                      revenue={pRevenue}
+                      opportunities={pOpps}
+                      completedCount={pCompleted}
+                    />
                   </div>
                 </CollapsibleContent>
               </Card>
