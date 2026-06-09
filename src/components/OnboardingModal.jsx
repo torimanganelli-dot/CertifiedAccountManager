@@ -2,21 +2,36 @@ import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
+import { useAuth } from "@/lib/AuthContext";
 import { toast } from "sonner";
 
 export default function OnboardingModal({ user, onComplete }) {
   const [displayName, setDisplayName] = useState(user?.full_name || "");
-  const [role, setRole] = useState("user");
+  const [role, setRole] = useState("participant");
   const [saving, setSaving] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!displayName.trim()) return;
     setSaving(true);
-    await base44.auth.updateMe({ display_name: displayName.trim(), role });
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: displayName.trim(),
+        role,
+      })
+      .eq("id", user.id);
+
+    if (error) {
+      toast.error("Something went wrong. Please try again.");
+      setSaving(false);
+      return;
+    }
+
     toast.success("Welcome to the CAM Accelerator!");
-    onComplete({ ...user, display_name: displayName.trim(), role });
+    await onComplete(); // calls refreshUser in AuthContext
   };
 
   return (
@@ -49,7 +64,7 @@ export default function OnboardingModal({ user, onComplete }) {
             <label className="text-sm font-medium block mb-2">I am a...</label>
             <div className="grid grid-cols-2 gap-3">
               {[
-                { value: "user", label: "Participant", desc: "I'm completing the CAM Accelerator program" },
+                { value: "participant", label: "Participant", desc: "I'm completing the CAM Accelerator program" },
                 { value: "leader", label: "Manager / Leader", desc: "I'm managing and coaching participants" },
               ].map(({ value, label, desc }) => (
                 <button

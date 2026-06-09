@@ -3,15 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { DollarSign, Target, Save, Download, CheckCircle2, MessageSquare, ChevronRight, Calendar, ClipboardList, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { SPRINT_LABELS } from "@/lib/sprintData";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-
-const QUESTION_IDS = ["q1", "q2", "q3", "q4", "q5"];
 
 export default function ReflectionTab({ sprint, user }) {
   const queryClient = useQueryClient();
@@ -20,20 +18,26 @@ export default function ReflectionTab({ sprint, user }) {
   const [metrics, setMetrics] = useState({ revenue_influenced: 0, opportunities_uncovered: 0 });
 
   const { data: allReflections = [] } = useQuery({
-    queryKey: ["my-reflections"],
-    queryFn: () => base44.entities.SprintReflection.filter({ created_by: user?.email }),
+    queryKey: ["my-reflections", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sprint_reflections")
+        .select("*")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id,
   });
 
   const existing = allReflections.find((r) => r.sprint_number === sprint.number);
 
   useEffect(() => {
     if (existing) {
-      // Parse stored answers JSON from reflection_text
       try {
         const stored = JSON.parse(existing.reflection_text || "{}");
         setAnswers(stored);
       } catch {
-        // Legacy plain text: put it in q1
         setAnswers({ q1: existing.reflection_text || "" });
       }
       setMetrics({
@@ -62,27 +66,41 @@ export default function ReflectionTab({ sprint, user }) {
         sprint_number: sprint.number,
         sprint_name: sprint.name,
         status,
-        participant_name: user?.full_name,
+        participant_name: user?.display_name || user?.email,
         cohort: user?.cohort || "",
+        user_id: user.id,
       };
-      if (existing) return base44.entities.SprintReflection.update(existing.id, data);
-      return base44.entities.SprintReflection.create(data);
+      if (existing) {
+        const { error } = await supabase
+          .from("sprint_reflections")
+          .update(data)
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("sprint_reflections")
+          .insert(data);
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["my-reflections"] });
+      queryClient.invalidateQueries({ queryKey: ["my-reflections", user?.id] });
       toast.success("Reflection saved!");
+    },
+    onError: (err) => {
+      toast.error("Save failed: " + err.message);
     },
   });
 
   const handleDownload = () => {
     const label = SPRINT_LABELS[sprint.number] || sprint.name;
     const lines = questions.map((q) => `${q.label.toUpperCase()}\n${q.prompt}\n\n${answers[q.id] || "(No answer)"}`).join("\n\n---\n\n");
-    const content = `${label}: ${sprint.name}\nParticipant: ${user?.full_name || ""}\nDate: ${new Date().toLocaleDateString()}\n\n${"=".repeat(50)}\n\n${lines}\n\n${"=".repeat(50)}\nRevenue Influenced: $${metrics.revenue_influenced.toLocaleString()}\nOpportunities Uncovered: ${metrics.opportunities_uncovered}`;
+    const content = `${label}: ${sprint.name}\nParticipant: ${user?.display_name || ""}\nDate: ${new Date().toLocaleDateString()}\n\n${"=".repeat(50)}\n\n${lines}\n\n${"=".repeat(50)}\nRevenue Influenced: $${metrics.revenue_influenced.toLocaleString()}\nOpportunities Uncovered: ${metrics.opportunities_uncovered}`;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${label.replace(/\s/g, "_")}_Reflection_${user?.full_name?.replace(/\s/g, "_") || "user"}.txt`;
+    a.download = `${label.replace(/\s/g, "_")}_Reflection_${user?.display_name?.replace(/\s/g, "_") || "user"}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -168,7 +186,6 @@ export default function ReflectionTab({ sprint, user }) {
       {sprint.number !== 9 && questions.length > 0 && (
         <Card className="border-0 shadow-sm overflow-hidden">
           <CardContent className="p-0">
-            {/* Progress header */}
             <div className="p-5 border-b border-border/50 bg-muted/30">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -182,7 +199,6 @@ export default function ReflectionTab({ sprint, user }) {
                 </div>
                 <span className="text-xs text-muted-foreground font-medium">{answeredCount}/{questions.length} answered</span>
               </div>
-              {/* Progress bar */}
               <div className="w-full bg-border rounded-full h-1.5 overflow-hidden">
                 <motion.div
                   className="h-full bg-primary rounded-full"
@@ -191,7 +207,6 @@ export default function ReflectionTab({ sprint, user }) {
                   transition={{ duration: 0.4 }}
                 />
               </div>
-              {/* Question tabs */}
               <div className="flex gap-2 mt-3">
                 {questions.map((q, i) => {
                   const answered = (answers[q.id] || "").trim().length > 10;
@@ -219,7 +234,6 @@ export default function ReflectionTab({ sprint, user }) {
               </div>
             </div>
 
-            {/* Active question */}
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeQuestion}
@@ -257,7 +271,7 @@ export default function ReflectionTab({ sprint, user }) {
                     onClick={() => setActiveQuestion((p) => p - 1)}
                     className="text-muted-foreground"
                   >
-                    ← Previous
+                    Previous
                   </Button>
                   {activeQuestion < questions.length - 1 ? (
                     <Button
@@ -268,7 +282,7 @@ export default function ReflectionTab({ sprint, user }) {
                       Next <ChevronRight className="w-3 h-3" />
                     </Button>
                   ) : (
-                    <span className="text-xs text-muted-foreground italic">All questions answered ✓</span>
+                    <span className="text-xs text-muted-foreground italic">All questions answered</span>
                   )}
                 </div>
               </motion.div>

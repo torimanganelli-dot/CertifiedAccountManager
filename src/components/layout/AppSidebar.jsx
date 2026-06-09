@@ -1,13 +1,14 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { 
-  LayoutDashboard, BookOpen, Trophy, FileText, 
-  Users, Settings, LogOut, ChevronRight
+import {
+  LayoutDashboard, BookOpen, Trophy, FileText,
+  Users, LogOut, ChevronRight
 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function AppSidebar({ user }) {
   const location = useLocation();
+  const { logout } = useAuth();
   const isLeader = user?.role === "leader" || user?.role === "admin";
 
   const participantLinks = [
@@ -26,7 +27,6 @@ export default function AppSidebar({ user }) {
   ];
 
   const links = isLeader ? leaderLinks : participantLinks;
-
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path + "/");
 
   return (
@@ -64,15 +64,15 @@ export default function AppSidebar({ user }) {
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-3 px-3">
           <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center text-xs font-bold text-sidebar-foreground">
-            {user?.full_name?.[0] || "?"}
+            {user?.display_name?.[0] || user?.email?.[0] || "?"}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">{user?.full_name || "User"}</p>
+            <p className="text-sm font-medium truncate">{user?.display_name || user?.email || "User"}</p>
             <p className="text-xs text-sidebar-foreground/50 capitalize">{user?.role || "participant"}</p>
           </div>
         </div>
         <button
-          onClick={() => base44.auth.logout()}
+          onClick={logout}
           className="flex items-center gap-2 px-3 py-2 w-full text-sm text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors rounded-lg hover:bg-sidebar-accent/50"
         >
           <LogOut className="w-4 h-4" />

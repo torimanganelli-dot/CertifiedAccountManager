@@ -4,7 +4,6 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
-import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import Landing from './pages/Landing';
 import OnboardingModal from './components/OnboardingModal';
@@ -18,9 +17,9 @@ import LeaderDashboard from './pages/leader/LeaderDashboard';
 import AdminPanel from './pages/admin/AdminPanel';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, user, checkUserAuth } = useAuth();
+  const { isLoadingAuth, isAuthenticated, user, refreshUser } = useAuth();
 
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -33,30 +32,24 @@ const AuthenticatedApp = () => {
     );
   }
 
-  if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      return (
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="*" element={<Landing />} />
-        </Routes>
-      );
-    }
+  if (!isAuthenticated) {
+    return (
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="*" element={<Landing />} />
+      </Routes>
+    );
   }
 
-  const isLeader = user?.role === "leader" || user?.role === "admin";
-  const defaultRoute = isLeader ? "/leader" : "/dashboard";
+  const isLeader = user?.role === 'leader' || user?.role === 'admin';
+  const defaultRoute = isLeader ? '/leader' : '/dashboard';
   const needsOnboarding = user && !user.display_name;
-
-  const handleOnboardingComplete = (updatedUser) => {
-    checkUserAuth();
-  };
 
   return (
     <>
-      {needsOnboarding && <OnboardingModal user={user} onComplete={handleOnboardingComplete} />}
+      {needsOnboarding && (
+        <OnboardingModal user={user} onComplete={refreshUser} />
+      )}
       <Routes>
         <Route path="/" element={<Navigate to={defaultRoute} replace />} />
         <Route element={<AppLayout user={user} />}>
