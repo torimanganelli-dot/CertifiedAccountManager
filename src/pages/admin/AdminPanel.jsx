@@ -1,11 +1,10 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/api/supabaseClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Users, Layers, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,39 +12,59 @@ export default function AdminPanel() {
   const queryClient = useQueryClient();
   const [newCohortName, setNewCohortName] = useState("");
 
-  const { data: users = [] } = useQuery({
-    queryKey: ["users"],
-    queryFn: () => base44.entities.User.list(),
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["all-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("*");
+      if (error) throw error;
+      return data;
+    },
   });
 
   const { data: cohorts = [] } = useQuery({
     queryKey: ["cohorts"],
-    queryFn: () => base44.entities.Cohort.list(),
-  });
-
-  const updateUserMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.User.update(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
-      toast.success("Participant updated");
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cohorts").select("*").order("created_at");
+      if (error) throw error;
+      return data;
     },
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: async ({ id, updates }) => {
+      const { error } = await supabase.from("profiles").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      toast.success("Participant updated");
+    },
+    onError: (err) => toast.error("Update failed: " + err.message),
+  });
+
   const createCohortMutation = useMutation({
-    mutationFn: (name) => base44.entities.Cohort.create({ name, is_active: true }),
+    mutationFn: async (name) => {
+      const { error } = await supabase.from("cohorts").insert({ name, is_active: true });
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cohorts"] });
       setNewCohortName("");
       toast.success("Cohort created");
     },
+    onError: (err) => toast.error("Create failed: " + err.message),
   });
 
   const deleteCohortMutation = useMutation({
-    mutationFn: (id) => base44.entities.Cohort.delete(id),
+    mutationFn: async (id) => {
+      const { error } = await supabase.from("cohorts").delete().eq("id", id);
+      if (error) throw error;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cohorts"] });
       toast.success("Cohort deleted");
     },
+    onError: (err) => toast.error("Delete failed: " + err.message),
   });
 
   return (
@@ -71,25 +90,25 @@ export default function AdminPanel() {
               <CardTitle>All Participants</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {users.map((u) => (
-                <div key={u.id} className="flex items-center justify-between gap-4 py-2 border-b last:border-0">
+              {profiles.map((p) => (
+                <div key={p.id} className="flex items-center justify-between gap-4 py-2 border-b last:border-0">
                   <div>
-                    <p className="font-medium text-sm">{u.full_name || u.email}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                    <p className="font-medium text-sm">{p.display_name || p.email}</p>
+                    <p className="text-xs text-muted-foreground">{p.email}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <select
-                      value={u.role || "user"}
-                      onChange={(e) => updateUserMutation.mutate({ id: u.id, data: { role: e.target.value } })}
+                      value={p.role || "participant"}
+                      onChange={(e) => updateProfileMutation.mutate({ id: p.id, updates: { role: e.target.value } })}
                       className="text-xs border rounded-md px-2 py-1 bg-background"
                     >
-                      <option value="user">Participant</option>
+                      <option value="participant">Participant</option>
                       <option value="leader">Leader</option>
                       <option value="admin">Admin</option>
                     </select>
                     <select
-                      value={u.cohort || ""}
-                      onChange={(e) => updateUserMutation.mutate({ id: u.id, data: { cohort: e.target.value } })}
+                      value={p.cohort || ""}
+                      onChange={(e) => updateProfileMutation.mutate({ id: p.id, updates: { cohort: e.target.value } })}
                       className="text-xs border rounded-md px-2 py-1 bg-background"
                     >
                       <option value="">No cohort</option>
@@ -100,7 +119,7 @@ export default function AdminPanel() {
                   </div>
                 </div>
               ))}
-              {users.length === 0 && <p className="text-sm text-muted-foreground">No participants yet.</p>}
+              {profiles.length === 0 && <p className="text-sm text-muted-foreground">No participants yet.</p>}
             </CardContent>
           </Card>
         </TabsContent>
@@ -134,7 +153,7 @@ export default function AdminPanel() {
             </CardHeader>
             <CardContent className="space-y-3">
               {cohorts.map((c) => {
-                const memberCount = users.filter((u) => u.cohort === c.name).length;
+                const memberCount = profiles.filter((p) => p.cohort === c.name).length;
                 return (
                   <div key={c.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div>
