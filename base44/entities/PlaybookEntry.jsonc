@@ -1,0 +1,81 @@
+{
+  "name": "PlaybookEntry",
+  "type": "object",
+  "properties": {
+    "org_chart": {
+      "type": "string",
+      "description": "Your HUB's Org Chart"
+    },
+    "team_roles": {
+      "type": "string",
+      "description": "Team Roles & Responsibilities"
+    },
+    "strategic_priorities": {
+      "type": "string",
+      "description": "Strategic Priorities"
+    },
+    "success_metrics": {
+      "type": "string",
+      "description": "Success Metrics"
+    },
+    "ideal_partnership": {
+      "type": "string",
+      "description": "Ideal Partnership Criteria"
+    },
+    "client_onboarding": {
+      "type": "string",
+      "description": "Client Onboarding & Kickoff"
+    },
+    "tracking_forecasting": {
+      "type": "string",
+      "description": "Tracking and Forecasting"
+    },
+    "client_segmentation": {
+      "type": "string",
+      "description": "Client Segmentation & Prioritization"
+    },
+    "qbr_process": {
+      "type": "string",
+      "description": "Planning Strategic Meetings & QBRs"
+    },
+    "internal_collaboration": {
+      "type": "string",
+      "description": "Internal Collaboration & Team Leadership"
+    },
+    "client_milestones": {
+      "type": "string",
+      "description": "Client Milestones"
+    },
+    "annual_timeline": {
+      "type": "string",
+      "description": "Client Annual Timeline"
+    },
+    "renewal_strategy": {
+      "type": "string",
+      "description": "Renewal Timeline & Milestones"
+    },
+    "growth_plan": {
+      "type": "string",
+      "description": "Cross-Sell & Growth Identification"
+    },
+    "client_loss": {
+      "type": "string",
+      "description": "Loss of a Client"
+    },
+    "success_stories": {
+      "type": "string",
+      "description": "Client Success Story Capture"
+    },
+    "resources": {
+      "type": "string",
+      "description": "Resources"
+    },
+    "participant_name": {
+      "type": "string"
+    },
+    "cohort": {
+      "type": "string"
+    }
+  },
+  "required": []
+}

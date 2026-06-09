@@ -1,0 +1,61 @@
+{
+  "name": "SprintReflection",
+  "type": "object",
+  "properties": {
+    "sprint_number": {
+      "type": "number",
+      "description": "Sprint number 1-8, or 9 for Capstone"
+    },
+    "sprint_name": {
+      "type": "string",
+      "description": "Display name of the sprint"
+    },
+    "reflection_text": {
+      "type": "string",
+      "description": "Main reflection content"
+    },
+    "purpose_connection": {
+      "type": "string",
+      "description": "How learning connects to purpose"
+    },
+    "understanding_gained": {
+      "type": "string",
+      "description": "What understanding was gained"
+    },
+    "influence_applied": {
+      "type": "string",
+      "description": "How influence was applied"
+    },
+    "revenue_influenced": {
+      "type": "number",
+      "default": 0,
+      "description": "Revenue influenced in dollars"
+    },
+    "opportunities_uncovered": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of opportunities uncovered"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "not_started",
+        "in_progress",
+        "completed"
+      ],
+      "default": "not_started"
+    },
+    "cohort": {
+      "type": "string",
+      "description": "Cohort the participant belongs to"
+    },
+    "participant_name": {
+      "type": "string",
+      "description": "Participant's full name"
+    }
+  },
+  "required": [
+    "sprint_number",
+    "sprint_name"
+  ]
+}

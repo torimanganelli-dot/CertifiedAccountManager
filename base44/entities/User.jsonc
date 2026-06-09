@@ -1,0 +1,31 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "enum": [
+        "participant",
+        "leader",
+        "admin"
+      ],
+      "default": "participant"
+    },
+    "cohort": {
+      "type": "string",
+      "description": "Cohort the user belongs to"
+    },
+    "hub_location": {
+      "type": "string",
+      "description": "HUB office location"
+    },
+    "manager_email": {
+      "type": "string",
+      "description": "Manager's email address"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "How the participant's name appears in the app"
+    }
+  }
+}

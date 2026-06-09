@@ -1,0 +1,32 @@
+{
+  "name": "Cohort",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Cohort name, e.g. Cohort 1 - Spring 2026"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional description"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Start date of the cohort"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Expected end date of the cohort"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this cohort is currently active"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

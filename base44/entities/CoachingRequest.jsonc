@@ -1,0 +1,41 @@
+{
+  "name": "CoachingRequest",
+  "type": "object",
+  "properties": {
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "one_on_one",
+        "hyperbound_signup"
+      ],
+      "description": "Type of coaching request"
+    },
+    "preferred_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Preferred date for coaching"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or context"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "scheduled",
+        "completed"
+      ],
+      "default": "pending"
+    },
+    "participant_name": {
+      "type": "string"
+    },
+    "cohort": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "request_type"
+  ]
+}
