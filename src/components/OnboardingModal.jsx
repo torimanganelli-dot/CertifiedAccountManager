@@ -16,13 +16,14 @@ export default function OnboardingModal({ user, onComplete }) {
     if (!displayName.trim()) return;
     setSaving(true);
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        display_name: displayName.trim(),
-        role,
-      })
-      .eq("id", user.id);
+const { error } = await supabase
+  .from("profiles")
+  .update({
+    display_name: displayName.trim(),
+    role,
+  })
+  .eq("id", user.id)
+  .select();
 
     if (error) {
       toast.error("Something went wrong. Please try again.");
