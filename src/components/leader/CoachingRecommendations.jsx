@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { base44 } from "@/api/base44Client";
 import { Sparkles, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
 
 export default function CoachingRecommendations({ reflections, participantName, revenue, opportunities, completedCount }) {
   const [recommendations, setRecommendations] = useState(null);
@@ -13,83 +11,73 @@ export default function CoachingRecommendations({ reflections, participantName, 
     setLoading(true);
 
     const completedReflections = reflections.filter((r) => r.status === "completed");
-    const inProgressReflections = reflections.filter((r) => r.status === "in_progress");
+    const reflectionSummary = completedReflections.map((r) => [
+      `--- Sprint ${r.sprint_number}: ${r.sprint_name} ---`,
+      r.reflection_text ? `Reflection: ${r.reflection_text}` : "",
+      `Revenue: $${r.revenue_influenced || 0} | Opportunities: ${r.opportunities_uncovered || 0}`,
+    ].filter(Boolean).join("\n")).join("\n\n");
 
-    const reflectionSummary = reflections
-      .filter((r) => r.status === "completed" || r.status === "in_progress")
-      .map((r) => {
-        const lines = [
-          `--- Sprint ${r.sprint_number}: ${r.sprint_name} (${r.status}) ---`,
-          `Revenue Influenced: $${r.revenue_influenced || 0} | Opportunities Uncovered: ${r.opportunities_uncovered || 0}`,
-        ];
-        if (r.reflection_text) lines.push(`Main Reflection: ${r.reflection_text}`);
-        if (r.purpose_connection) lines.push(`Purpose Connection: ${r.purpose_connection}`);
-        if (r.understanding_gained) lines.push(`Understanding Gained: ${r.understanding_gained}`);
-        if (r.influence_applied) lines.push(`Influence Applied: ${r.influence_applied}`);
-        return lines.join("\n");
-      })
-      .join("\n\n");
+    const prompt = `You are a sales coaching expert reviewing a HUB International Account Manager's progress in the CAM Accelerator program.
 
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `You are a coaching advisor for an insurance Certified Account Manager development program (HUB AM Accelerator).
+Participant: ${participantName}
+Sprints Completed: ${completedCount}/9
+Total Revenue Influenced: $${revenue.toLocaleString()}
+Opportunities Uncovered: ${opportunities}
 
-PARTICIPANT: ${participantName}
-PROGRAM PROGRESS: ${completedReflections.length} sprints completed, ${inProgressReflections.length} in progress, out of 9 total
-TOTAL REVENUE INFLUENCED: $${revenue.toLocaleString()}
-TOTAL OPPORTUNITIES UNCOVERED: ${opportunities}
+Sprint Reflections:
+${reflectionSummary || "No completed reflections yet."}
 
-THEIR SPRINT REFLECTIONS AND METRICS:
-${reflectionSummary || "No reflections submitted yet."}
+Provide 3 specific, actionable coaching recommendations for this participant based on their progress and reflections. Format as a numbered list. Be encouraging but specific.`;
 
-Based on what this participant has actually written in their reflections and their specific performance metrics above, generate exactly 3 open-ended discussion questions a leader should ask in a 1:1 coaching conversation. 
-
-Requirements for each question:
-1. Reference something SPECIFIC the participant wrote or a concrete pattern in their data (e.g. quote or paraphrase their own words, or cite their revenue/opportunity numbers)
-2. Be genuinely open-ended — not a yes/no question
-3. Push them to think more deeply about their growth, a gap they identified, or a commitment they made
-
-Return ONLY the 3 numbered questions. No headers, no preamble, no commentary — just the questions.`,
-    });
-    setRecommendations(result);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      const data = await response.json();
+      const text = data.content?.map((c) => c.text).join("") || "Unable to generate recommendations.";
+      setRecommendations(text);
+    } catch (err) {
+      setRecommendations("Unable to generate recommendations at this time.");
+    }
     setLoading(false);
   };
 
   return (
-    <div className="mt-3">
-      {!recommendations ? (
-        <Button
-          onClick={generateRecommendations}
-          disabled={loading}
-          variant="outline"
-          size="sm"
-          className="flex items-center gap-2"
-        >
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-secondary" />}
-          Generate Discussion Questions
-        </Button>
-      ) : (
-        <Card className="border border-secondary/30 bg-secondary/5">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Sparkles className="w-4 h-4 text-secondary" />
-              <h4 className="font-semibold text-sm">Discussion Questions</h4>
-            </div>
-            <div className="prose prose-sm max-w-none text-sm text-foreground">
-              <ReactMarkdown>{recommendations}</ReactMarkdown>
-            </div>
-            <Button
-              onClick={generateRecommendations}
-              disabled={loading}
-              variant="ghost"
-              size="sm"
-              className="mt-3 text-xs"
-            >
-              {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
-              Regenerate
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-    </div>
+    <Card className="border-0 bg-muted/30">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-sm flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-secondary" />
+            AI Coaching Recommendations
+          </h4>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={generateRecommendations}
+            disabled={loading}
+            className="flex items-center gap-2 text-xs"
+          >
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            {loading ? "Generating..." : "Generate"}
+          </Button>
+        </div>
+        {recommendations && (
+          <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+            {recommendations}
+          </div>
+        )}
+        {!recommendations && !loading && (
+          <p className="text-xs text-muted-foreground italic">
+            Click Generate to get AI-powered coaching recommendations for this participant.
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
