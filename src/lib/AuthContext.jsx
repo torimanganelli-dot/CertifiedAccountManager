@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
-    // Check active session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         loadProfile(session.user);
@@ -18,7 +17,6 @@ export const AuthProvider = ({ children }) => {
       }
     });
 
-    // Listen for auth state changes (magic link clicks, logouts, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         loadProfile(session.user);
@@ -42,8 +40,6 @@ export const AuthProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // Merge auth user fields with profile fields so the rest of the app
-      // has everything it expects (email, display_name, role, cohort, etc.)
       setUser({
         id: authUser.id,
         email: authUser.email,
@@ -56,9 +52,6 @@ export const AuthProvider = ({ children }) => {
       });
       setIsAuthenticated(true);
     } catch (err) {
-      console.error('Failed to load profile:', err);
-      // Profile row may not exist yet — still mark as authenticated
-      // so OnboardingModal can fire and create it
       setUser({
         id: authUser.id,
         email: authUser.email,
@@ -77,18 +70,16 @@ export const AuthProvider = ({ children }) => {
     await supabase.auth.signOut();
   };
 
-  // Sends a magic link to the given email
-  const sendMagicLink = async (email) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
-    });
+  const signIn = async (email, password) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
 
-  // Called by OnboardingModal after the user sets their display name
+  const signUp = async (email, password) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error };
+  };
+
   const refreshUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (authUser) await loadProfile(authUser);
@@ -100,7 +91,8 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated,
       isLoadingAuth,
       logout,
-      sendMagicLink,
+      signIn,
+      signUp,
       refreshUser,
     }}>
       {children}
